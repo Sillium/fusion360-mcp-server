@@ -3526,15 +3526,19 @@ class CommandHandler:
     # ------------------------------------------------------------------
 
     def execute_code(self, code: str):
-        design = self._design()
-        type_before = design.designType
+        # Ohne offenes Design weiterlaufen (z. B. um erst ein Dokument zu öffnen); design/component sind dann None.
+        try:
+            design = self._design()
+            type_before = design.designType
+        except Exception:
+            design, type_before = None, None
 
         ns = {
             "adsk": adsk,
             "app": self.app,
             "ui": self.ui,
             "design": design,
-            "component": self._root(),
+            "component": design.rootComponent if design else None,
             "math": math,
         }
 
@@ -3567,9 +3571,12 @@ class CommandHandler:
         result = last_expr_value if last_expr_value is not None else output
 
         # Warn if design type changed during execution
-        type_after = design.designType
+        try:   # Dokument kann im Code geschlossen worden sein
+            type_after = design.designType if design else None
+        except Exception:
+            type_after = type_before
         design_type_warning = None
-        if type_before != type_after:
+        if type_before is not None and type_after is not None and type_before != type_after:
             parametric = adsk.fusion.DesignTypes.ParametricDesignType
             design_type_warning = (
                 f"WARNING: Design type changed from "
